@@ -1,5 +1,3 @@
-//go:generate mockgen -destination=sender_mock.go -package=goat . SenderService
-
 package goat
 
 import (
@@ -8,7 +6,6 @@ import (
 
 // TODO : examples + doc
 // TODO : remove mocks from dep + makefile & replace with manual mock
-// TODO : sendgrid constructor without env vars but as arguments
 
 // SenderService defines the interface for handling emails
 type SenderService interface {

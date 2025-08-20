@@ -2,7 +2,6 @@ package goat
 
 import (
 	"context"
-	"os"
 
 	"github.com/sendgrid/rest"
 	"github.com/sendgrid/sendgrid-go"
@@ -22,12 +21,7 @@ type SendgridService struct {
 }
 
 // NewSendgridService returns a new instance of SendgridService
-func NewSendgridService() SenderService {
-	// Get SendGrid API key and sender info from environment variables
-	apiKey := os.Getenv("SENDGRID_API_KEY")
-	senderName := os.Getenv("SENDGRID_SENDER_NAME")
-	senderEmail := os.Getenv("SENDGRID_SENDER_EMAIL")
-
+func NewSendgridService(apiKey, senderName, senderEmail string) SenderService {
 	s := SendgridService{
 		client: sendgrid.NewSendClient(apiKey),
 		from:   mail.NewEmail(senderName, senderEmail),

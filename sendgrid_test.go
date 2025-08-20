@@ -3,7 +3,6 @@ package goat
 import (
 	"context"
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/sendgrid/rest"
@@ -26,11 +25,7 @@ func (m MockSendgridClient) SendWithContext(ctx context.Context, email *mail.SGM
 
 // TestNewSendgridService tests the NewSendgridService function
 func TestNewSendgridService(t *testing.T) {
-	os.Setenv("SENDGRID_API_KEY", "test_api_key")
-	os.Setenv("SENDGRID_SENDER_NAME", "test_sender_name")
-	os.Setenv("SENDGRID_SENDER_EMAIL", "test_sender_email")
-
-	service := NewSendgridService()
+	service := NewSendgridService("test_api_key", "test_sender_name", "test_sender_email")
 
 	assert.NotNil(t, service)
 	assert.IsType(t, &SendgridService{}, service)
@@ -38,11 +33,7 @@ func TestNewSendgridService(t *testing.T) {
 
 // TestSendgridService_Send tests the Send method of SendgridService
 func TestSendgridService_Send(t *testing.T) {
-	os.Setenv("SENDGRID_API_KEY", "test_api_key")
-	os.Setenv("SENDGRID_SENDER_NAME", "test_sender_name")
-	os.Setenv("SENDGRID_SENDER_EMAIL", "test_sender_email")
-
-	service := NewSendgridService()
+	service := NewSendgridService("test_api_key", "test_sender_name", "test_sender_email")
 
 	// Test case where sending email succeeds
 	t.Run("Success", func(t *testing.T) {

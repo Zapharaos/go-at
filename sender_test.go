@@ -5,17 +5,64 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
 )
+
+// Manual mock implementation for SenderService
+type MockSenderService struct {
+	SendFunc  func(emailTo, subject, plainTextContent, htmlContent string) error
+	SendCalls []SendCall
+	mu        sync.Mutex
+}
+
+type SendCall struct {
+	EmailTo          string
+	Subject          string
+	PlainTextContent string
+	HTMLContent      string
+}
+
+func NewMockSenderService() *MockSenderService {
+	return &MockSenderService{
+		SendCalls: make([]SendCall, 0),
+	}
+}
+
+func (m *MockSenderService) Send(emailTo, subject, plainTextContent, htmlContent string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.SendCalls = append(m.SendCalls, SendCall{
+		EmailTo:          emailTo,
+		Subject:          subject,
+		PlainTextContent: plainTextContent,
+		HTMLContent:      htmlContent,
+	})
+
+	if m.SendFunc != nil {
+		return m.SendFunc(emailTo, subject, plainTextContent, htmlContent)
+	}
+	return nil
+}
+
+func (m *MockSenderService) GetSendCalls() []SendCall {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return append([]SendCall{}, m.SendCalls...)
+}
+
+func (m *MockSenderService) Reset() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.SendCalls = m.SendCalls[:0]
+	m.SendFunc = nil
+}
 
 // TestSetSenderService tests the SetSenderService function
 // It verifies that the global service can be replaced and restored correctly.
 func TestSetSenderService(t *testing.T) {
 	t.Run("Basic replacement and restoration", func(t *testing.T) {
 		// Mock
-		ctrl := gomock.NewController(t)
-		m := NewMockSenderService(ctrl)
-		defer ctrl.Finish()
+		m := NewMockSenderService()
 
 		// Replace the global service with a mock service
 		restore := SetSenderService(m)
@@ -29,10 +76,8 @@ func TestSetSenderService(t *testing.T) {
 	})
 
 	t.Run("Multiple replacements work correctly", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		mock1 := NewMockSenderService(ctrl)
-		mock2 := NewMockSenderService(ctrl)
-		defer ctrl.Finish()
+		mock1 := NewMockSenderService()
+		mock2 := NewMockSenderService()
 
 		// Set first service
 		restore1 := SetSenderService(mock1)
@@ -53,9 +98,7 @@ func TestSetSenderService(t *testing.T) {
 	})
 
 	t.Run("Restore function can be called multiple times safely", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		mock := NewMockSenderService(ctrl)
-		defer ctrl.Finish()
+		mock := NewMockSenderService()
 
 		originalService := GetSenderService()
 		restore := SetSenderService(mock)
@@ -76,9 +119,7 @@ func TestSetSenderService(t *testing.T) {
 func TestGetSenderService(t *testing.T) {
 	t.Run("Returns the current global service", func(t *testing.T) {
 		// Mock
-		ctrl := gomock.NewController(t)
-		m := NewMockSenderService(ctrl)
-		defer ctrl.Finish()
+		m := NewMockSenderService()
 
 		// Replace the global service with a mock service
 		restore := SetSenderService(m)
@@ -101,32 +142,33 @@ func TestGetSenderService(t *testing.T) {
 
 // TestGlobalFunctions tests the global wrapper functions
 func TestGlobalFunctions(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	mockService := NewMockSenderService(ctrl)
-	defer ctrl.Finish()
+	mockService := NewMockSenderService()
 
 	restore := SetSenderService(mockService)
 	defer restore()
 
-	t.Run("Translate calls service Translate", func(t *testing.T) {
+	t.Run("Send calls service Send", func(t *testing.T) {
 		expectedErr := assert.AnError
 
-		mockService.EXPECT().
-			Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-			Return(expectedErr)
+		// Set up the mock to return the expected error
+		mockService.SendFunc = func(emailTo, subject, plainTextContent, htmlContent string) error {
+			return expectedErr
+		}
 
 		err := Send("", "", "", "")
 
 		assert.Equal(t, expectedErr, err)
+
+		// Verify the call was made
+		calls := mockService.GetSendCalls()
+		assert.Len(t, calls, 1)
 	})
 }
 
 // TestConcurrentAccess tests thread safety of the global service
 func TestConcurrentAccess(t *testing.T) {
 	t.Run("Concurrent reads are safe", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		mockService := NewMockSenderService(ctrl)
-		defer ctrl.Finish()
+		mockService := NewMockSenderService()
 
 		restore := SetSenderService(mockService)
 		defer restore()
@@ -152,9 +194,6 @@ func TestConcurrentAccess(t *testing.T) {
 	})
 
 	t.Run("Concurrent writes are safe", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
 		const numWriters = 10
 		var wg sync.WaitGroup
 		mocks := make([]*MockSenderService, numWriters)
@@ -162,7 +201,7 @@ func TestConcurrentAccess(t *testing.T) {
 
 		// Create mock services
 		for i := 0; i < numWriters; i++ {
-			mocks[i] = NewMockSenderService(ctrl)
+			mocks[i] = NewMockSenderService()
 		}
 
 		wg.Add(numWriters)
@@ -195,9 +234,7 @@ func TestConcurrentAccess(t *testing.T) {
 	})
 
 	t.Run("Mixed concurrent reads and writes are safe", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		mockService := NewMockSenderService(ctrl)
-		defer ctrl.Finish()
+		mockService := NewMockSenderService()
 
 		const numOperations = 50
 		var wg sync.WaitGroup
@@ -220,7 +257,7 @@ func TestConcurrentAccess(t *testing.T) {
 		for i := 0; i < numOperations; i++ {
 			go func() {
 				defer wg.Done()
-				newMock := NewMockSenderService(ctrl)
+				newMock := NewMockSenderService()
 				restore := SetSenderService(newMock)
 				// Immediately restore to avoid leaving test in inconsistent state
 				restore()
@@ -238,7 +275,7 @@ func TestGlobalFunctionsWithNilService(t *testing.T) {
 	restore := SetSenderService(nil)
 	defer restore()
 
-	t.Run("Translate panics with nil service", func(t *testing.T) {
+	t.Run("Send panics with nil service", func(t *testing.T) {
 		assert.Panics(t, func() {
 			_ = Send("", "", "", "")
 		})
