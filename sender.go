@@ -4,9 +4,6 @@ import (
 	"sync"
 )
 
-// TODO : examples + doc
-// TODO : remove mocks from dep + makefile & replace with manual mock
-
 // SenderService defines the interface for handling emails
 type SenderService interface {
 	Send(emailTo, subject, plainTextContent, htmlContent string) error
