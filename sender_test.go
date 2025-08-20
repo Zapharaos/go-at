@@ -64,6 +64,9 @@ func TestSetSenderService(t *testing.T) {
 		// Mock
 		m := NewMockSenderService()
 
+		// Store original service
+		originalService := GetSenderService()
+
 		// Replace the global service with a mock service
 		restore := SetSenderService(m)
 
@@ -72,12 +75,16 @@ func TestSetSenderService(t *testing.T) {
 
 		// Restore the previous global service
 		restore()
+		assert.Equal(t, originalService, GetSenderService())
 		assert.NotEqual(t, m, GetSenderService())
 	})
 
 	t.Run("Multiple replacements work correctly", func(t *testing.T) {
 		mock1 := NewMockSenderService()
 		mock2 := NewMockSenderService()
+
+		// Store original service
+		originalService := GetSenderService()
 
 		// Set first service
 		restore1 := SetSenderService(mock1)
@@ -93,8 +100,7 @@ func TestSetSenderService(t *testing.T) {
 
 		// Restore to original
 		restore1()
-		assert.NotEqual(t, mock1, GetSenderService())
-		assert.NotEqual(t, mock2, GetSenderService())
+		assert.Equal(t, originalService, GetSenderService())
 	})
 
 	t.Run("Restore function can be called multiple times safely", func(t *testing.T) {

@@ -6,7 +6,6 @@ require (
 	github.com/sendgrid/rest v2.6.9+incompatible
 	github.com/sendgrid/sendgrid-go v3.16.1+incompatible
 	github.com/stretchr/testify v1.10.0
-	go.uber.org/mock v0.6.0
 )
 
 require (
