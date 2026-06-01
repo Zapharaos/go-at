@@ -15,7 +15,7 @@ help:
 
 # Install development dependencies
 dev-deps:
-	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.4.0
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
 
 # Test the code and generate coverage report
 test-unit:
