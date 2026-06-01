@@ -44,3 +44,21 @@ func (s *SendgridService) Send(emailTo, subject, plainTextContent, htmlContent s
 
 	return nil
 }
+
+// SendWithReplyTo sends an email using SendGrid with a reply-to address
+func (s *SendgridService) SendWithReplyTo(emailTo, subject, plainTextContent, htmlContent string, replyTo ReplyTo) error {
+	// Email props
+	to := mail.NewEmail(emailTo, emailTo)
+	message := mail.NewSingleEmail(s.from, subject, to, plainTextContent, htmlContent)
+	if replyTo.Address != "" {
+		message.SetReplyTo(mail.NewEmail(replyTo.Name, replyTo.Address))
+	}
+
+	// Send email
+	_, err := s.client.Send(message)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

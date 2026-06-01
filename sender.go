@@ -7,6 +7,7 @@ import (
 // SenderService defines the interface for handling emails
 type SenderService interface {
 	Send(emailTo, subject, plainTextContent, htmlContent string) error
+	SendWithReplyTo(emailTo, subject, plainTextContent, htmlContent string, replyTo ReplyTo) error
 }
 
 var (
@@ -38,4 +39,12 @@ func GetSenderService() SenderService {
 // Send Directly exposes the current sender service Send function.
 func Send(emailTo, subject, plainTextContent, htmlContent string) error {
 	return GetSenderService().Send(emailTo, subject, plainTextContent, htmlContent)
+}
+
+// SendWithReplyTo Directly exposes the current sender service SendWithReplyTo function.
+func SendWithReplyTo(emailTo, subject, plainTextContent, htmlContent, replyToName, replyToAddress string) error {
+	return GetSenderService().SendWithReplyTo(emailTo, subject, plainTextContent, htmlContent, ReplyTo{
+		Name:    replyToName,
+		Address: replyToAddress,
+	})
 }
