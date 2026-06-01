@@ -58,3 +58,45 @@ func TestSendgridService_Send(t *testing.T) {
 		assert.Equal(t, "failed to send email", err.Error())
 	})
 }
+
+// TestSendgridService_SendWithReplyTo tests the SendWithReplyTo method of SendgridService
+func TestSendgridService_SendWithReplyTo(t *testing.T) {
+	service := NewSendgridService("test_api_key", "test_sender_name", "test_sender_email")
+
+	t.Run("Success without reply-to address", func(t *testing.T) {
+		service.(*SendgridService).client = MockSendgridClient{
+			SendResponse: &rest.Response{},
+			SendError:    nil,
+		}
+
+		err := service.SendWithReplyTo("test@example.com", "Test Subject", "Test Plain Text", "Test HTML Content", ReplyTo{})
+		assert.NoError(t, err)
+	})
+
+	t.Run("Success with reply-to address", func(t *testing.T) {
+		service.(*SendgridService).client = MockSendgridClient{
+			SendResponse: &rest.Response{},
+			SendError:    nil,
+		}
+
+		err := service.SendWithReplyTo("test@example.com", "Test Subject", "Test Plain Text", "Test HTML Content", ReplyTo{
+			Name:    "Reply Name",
+			Address: "reply@example.com",
+		})
+		assert.NoError(t, err)
+	})
+
+	t.Run("Failure", func(t *testing.T) {
+		service.(*SendgridService).client = MockSendgridClient{
+			SendResponse: &rest.Response{},
+			SendError:    fmt.Errorf("failed to send email"),
+		}
+
+		err := service.SendWithReplyTo("test@example.com", "Test Subject", "Test Plain Text", "Test HTML Content", ReplyTo{
+			Name:    "Reply Name",
+			Address: "reply@example.com",
+		})
+		assert.Error(t, err)
+		assert.Equal(t, "failed to send email", err.Error())
+	})
+}

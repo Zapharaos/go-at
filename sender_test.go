@@ -9,9 +9,11 @@ import (
 
 // Manual mock implementation for SenderService
 type MockSenderService struct {
-	SendFunc  func(emailTo, subject, plainTextContent, htmlContent string) error
-	SendCalls []SendCall
-	mu        sync.Mutex
+	SendFunc             func(emailTo, subject, plainTextContent, htmlContent string) error
+	SendWithReplyToFunc  func(emailTo, subject, plainTextContent, htmlContent string, replyTo ReplyTo) error
+	SendCalls            []SendCall
+	SendWithReplyToCalls []SendWithReplyToCall
+	mu                   sync.Mutex
 }
 
 type SendCall struct {
@@ -21,9 +23,18 @@ type SendCall struct {
 	HTMLContent      string
 }
 
+type SendWithReplyToCall struct {
+	EmailTo          string
+	Subject          string
+	PlainTextContent string
+	HTMLContent      string
+	ReplyTo          ReplyTo
+}
+
 func NewMockSenderService() *MockSenderService {
 	return &MockSenderService{
-		SendCalls: make([]SendCall, 0),
+		SendCalls:            make([]SendCall, 0),
+		SendWithReplyToCalls: make([]SendWithReplyToCall, 0),
 	}
 }
 
@@ -44,10 +55,34 @@ func (m *MockSenderService) Send(emailTo, subject, plainTextContent, htmlContent
 	return nil
 }
 
+func (m *MockSenderService) SendWithReplyTo(emailTo, subject, plainTextContent, htmlContent string, replyTo ReplyTo) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.SendWithReplyToCalls = append(m.SendWithReplyToCalls, SendWithReplyToCall{
+		EmailTo:          emailTo,
+		Subject:          subject,
+		PlainTextContent: plainTextContent,
+		HTMLContent:      htmlContent,
+		ReplyTo:          replyTo,
+	})
+
+	if m.SendWithReplyToFunc != nil {
+		return m.SendWithReplyToFunc(emailTo, subject, plainTextContent, htmlContent, replyTo)
+	}
+	return nil
+}
+
 func (m *MockSenderService) GetSendCalls() []SendCall {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return append([]SendCall{}, m.SendCalls...)
+}
+
+func (m *MockSenderService) GetSendWithReplyToCalls() []SendWithReplyToCall {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return append([]SendWithReplyToCall{}, m.SendWithReplyToCalls...)
 }
 
 func (m *MockSenderService) Reset() {
@@ -55,6 +90,8 @@ func (m *MockSenderService) Reset() {
 	defer m.mu.Unlock()
 	m.SendCalls = m.SendCalls[:0]
 	m.SendFunc = nil
+	m.SendWithReplyToCalls = m.SendWithReplyToCalls[:0]
+	m.SendWithReplyToFunc = nil
 }
 
 // TestSetSenderService tests the SetSenderService function
@@ -169,6 +206,7 @@ func TestGlobalFunctions(t *testing.T) {
 	defer restore()
 
 	t.Run("Send calls service Send", func(t *testing.T) {
+		mockService.Reset()
 		expectedErr := assert.AnError
 
 		// Set up the mock to return the expected error
@@ -183,6 +221,27 @@ func TestGlobalFunctions(t *testing.T) {
 		// Verify the call was made
 		calls := mockService.GetSendCalls()
 		assert.Len(t, calls, 1)
+	})
+
+	t.Run("SendWithReplyTo calls service SendWithReplyTo", func(t *testing.T) {
+		mockService.Reset()
+		expectedErr := assert.AnError
+
+		mockService.SendWithReplyToFunc = func(emailTo, subject, plainTextContent, htmlContent string, replyTo ReplyTo) error {
+			return expectedErr
+		}
+
+		err := SendWithReplyTo("to@example.com", "Subject", "plain", "<b>html</b>", "Reply Name", "reply@example.com")
+
+		assert.Equal(t, expectedErr, err)
+
+		calls := mockService.GetSendWithReplyToCalls()
+		assert.Len(t, calls, 1)
+		assert.Equal(t, "to@example.com", calls[0].EmailTo)
+		assert.Equal(t, "Subject", calls[0].Subject)
+		assert.Equal(t, "plain", calls[0].PlainTextContent)
+		assert.Equal(t, "<b>html</b>", calls[0].HTMLContent)
+		assert.Equal(t, ReplyTo{Name: "Reply Name", Address: "reply@example.com"}, calls[0].ReplyTo)
 	})
 }
 
@@ -299,6 +358,12 @@ func TestGlobalFunctionsWithNilService(t *testing.T) {
 	t.Run("Send panics with nil service", func(t *testing.T) {
 		assert.Panics(t, func() {
 			_ = Send("", "", "", "")
+		})
+	})
+
+	t.Run("SendWithReplyTo panics with nil service", func(t *testing.T) {
+		assert.Panics(t, func() {
+			_ = SendWithReplyTo("", "", "", "", "", "")
 		})
 	})
 }
