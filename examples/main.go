@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/Zapharaos/go-at"
+	goat "github.com/Zapharaos/go-at"
 )
 
 // User represents a user in our system
