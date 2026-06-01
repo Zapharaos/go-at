@@ -16,7 +16,7 @@ Go library for streamlining email delivery with templating capabilities.
 ### Features
 
 - **Easy integration**: Minimal setup with sensible defaults
-- **Email delivery**: Send emails via SendGrid with an extensible interface for other providers
+- **Email delivery**: Send emails via SendGrid or Brevo with an extensible interface for other providers
 - **Templating**: Create dynamic content using Go's template syntax
 - **Styling**: Add styles through your template definitions
 
@@ -80,6 +80,21 @@ func main() {
 ```
 
 For comprehensive usage examples including template variables, pluralization, and fallback behavior, see the [examples package](./examples/).
+
+### Using Brevo instead of SendGrid
+
+go-at also ships with a Brevo implementation of the sender interface. Swap the
+service creation for `NewBrevoService` and the rest of the API stays the same:
+
+```go
+service := goat.NewBrevoService(
+    "your-brevo-api-key",
+    "Your Company",
+    "no-reply@yourcompany.com",
+)
+restore := goat.SetSenderService(service)
+defer restore()
+```
 
 ## Development
 
