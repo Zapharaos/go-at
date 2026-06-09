@@ -31,34 +31,18 @@ func NewSendgridService(apiKey, senderName, senderEmail string) SenderService {
 }
 
 // Send sends an email using SendGrid
-func (s *SendgridService) Send(emailTo, subject, plainTextContent, htmlContent string) error {
-	// Email props
-	to := mail.NewEmail(emailTo, emailTo)
-	message := mail.NewSingleEmail(s.from, subject, to, plainTextContent, htmlContent)
+func (s *SendgridService) Send(message *EmailMessage) error {
+	to := mail.NewEmail(message.To, message.To)
+	msg := mail.NewSingleEmail(s.from, message.Subject, to, message.PlainTextContent, message.HTMLContent)
 
-	// Send email
-	_, err := s.client.Send(message)
-	if err != nil {
-		return err
+	if message.ReplyTo != nil && message.ReplyTo.Address != "" {
+		msg.SetReplyTo(mail.NewEmail(message.ReplyTo.Name, message.ReplyTo.Address))
 	}
 
-	return nil
-}
-
-// SendWithReplyTo sends an email using SendGrid with a reply-to address
-func (s *SendgridService) SendWithReplyTo(emailTo, subject, plainTextContent, htmlContent string, replyTo ReplyTo) error {
-	// Email props
-	to := mail.NewEmail(emailTo, emailTo)
-	message := mail.NewSingleEmail(s.from, subject, to, plainTextContent, htmlContent)
-	if replyTo.Address != "" {
-		message.SetReplyTo(mail.NewEmail(replyTo.Name, replyTo.Address))
+	for k, v := range message.Headers {
+		msg.SetHeader(k, v)
 	}
 
-	// Send email
-	_, err := s.client.Send(message)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	_, err := s.client.Send(msg)
+	return err
 }

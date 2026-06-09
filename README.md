@@ -67,12 +67,12 @@ func main() {
     }
 
     // 4. Send the email
-    err = goat.Send(
-        "user@example.com",
-        "Welcome to Acme Corp!",
-        content, // plain text
-        content, // HTML (same as plain text in this simple example)
-    )
+	err = goat.Send(goat.NewEmailMessage(
+		"user@example.com",
+		"Welcome to Acme Corp!",
+		content, // plain text
+		content, // HTML (same as plain text in this simple example)
+    ))
     if err != nil {
         log.Fatal(err)
     }

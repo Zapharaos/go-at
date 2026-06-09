@@ -35,45 +35,30 @@ func NewBrevoService(apiKey, senderName, senderEmail string) SenderService {
 }
 
 // Send sends an email using Brevo
-func (s *BrevoService) Send(emailTo, subject, plainTextContent, htmlContent string) error {
-	message := brevo.SendSmtpEmail{
+func (s *BrevoService) Send(message *EmailMessage) error {
+	brevoMsg := brevo.SendSmtpEmail{
 		Sender:      s.from,
-		To:          []brevo.SendSmtpEmailTo{{Email: emailTo, Name: emailTo}},
-		Subject:     subject,
-		TextContent: plainTextContent,
-		HtmlContent: htmlContent,
+		To:          []brevo.SendSmtpEmailTo{{Email: message.To, Name: message.To}},
+		Subject:     message.Subject,
+		TextContent: message.PlainTextContent,
+		HtmlContent: message.HTMLContent,
 	}
 
-	// Send email
-	_, _, err := s.client.SendTransacEmail(context.Background(), message)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// SendWithReplyTo sends an email using Brevo with a reply-to address
-func (s *BrevoService) SendWithReplyTo(emailTo, subject, plainTextContent, htmlContent string, replyTo ReplyTo) error {
-	message := brevo.SendSmtpEmail{
-		Sender:      s.from,
-		To:          []brevo.SendSmtpEmailTo{{Email: emailTo, Name: emailTo}},
-		Subject:     subject,
-		TextContent: plainTextContent,
-		HtmlContent: htmlContent,
-	}
-	if replyTo.Address != "" {
-		message.ReplyTo = &brevo.SendSmtpEmailReplyTo{
-			Name:  replyTo.Name,
-			Email: replyTo.Address,
+	if message.ReplyTo != nil && message.ReplyTo.Address != "" {
+		brevoMsg.ReplyTo = &brevo.SendSmtpEmailReplyTo{
+			Name:  message.ReplyTo.Name,
+			Email: message.ReplyTo.Address,
 		}
 	}
 
-	// Send email
-	_, _, err := s.client.SendTransacEmail(context.Background(), message)
-	if err != nil {
-		return err
+	if len(message.Headers) > 0 {
+		h := make(map[string]interface{}, len(message.Headers))
+		for k, v := range message.Headers {
+			h[k] = v
+		}
+		brevoMsg.Headers = h
 	}
 
-	return nil
+	_, _, err := s.client.SendTransacEmail(context.Background(), brevoMsg)
+	return err
 }
