@@ -9,80 +9,33 @@ import (
 
 // Manual mock implementation for SenderService
 type MockSenderService struct {
-	SendFunc             func(emailTo, subject, plainTextContent, htmlContent string) error
-	SendWithReplyToFunc  func(emailTo, subject, plainTextContent, htmlContent string, replyTo ReplyTo) error
-	SendCalls            []SendCall
-	SendWithReplyToCalls []SendWithReplyToCall
-	mu                   sync.Mutex
-}
-
-type SendCall struct {
-	EmailTo          string
-	Subject          string
-	PlainTextContent string
-	HTMLContent      string
-}
-
-type SendWithReplyToCall struct {
-	EmailTo          string
-	Subject          string
-	PlainTextContent string
-	HTMLContent      string
-	ReplyTo          ReplyTo
+	SendFunc  func(message *EmailMessage) error
+	SendCalls []*EmailMessage
+	mu        sync.Mutex
 }
 
 func NewMockSenderService() *MockSenderService {
 	return &MockSenderService{
-		SendCalls:            make([]SendCall, 0),
-		SendWithReplyToCalls: make([]SendWithReplyToCall, 0),
+		SendCalls: make([]*EmailMessage, 0),
 	}
 }
 
-func (m *MockSenderService) Send(emailTo, subject, plainTextContent, htmlContent string) error {
+func (m *MockSenderService) Send(message *EmailMessage) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.SendCalls = append(m.SendCalls, SendCall{
-		EmailTo:          emailTo,
-		Subject:          subject,
-		PlainTextContent: plainTextContent,
-		HTMLContent:      htmlContent,
-	})
+	m.SendCalls = append(m.SendCalls, message)
 
 	if m.SendFunc != nil {
-		return m.SendFunc(emailTo, subject, plainTextContent, htmlContent)
+		return m.SendFunc(message)
 	}
 	return nil
 }
 
-func (m *MockSenderService) SendWithReplyTo(emailTo, subject, plainTextContent, htmlContent string, replyTo ReplyTo) error {
+func (m *MockSenderService) GetSendCalls() []*EmailMessage {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-
-	m.SendWithReplyToCalls = append(m.SendWithReplyToCalls, SendWithReplyToCall{
-		EmailTo:          emailTo,
-		Subject:          subject,
-		PlainTextContent: plainTextContent,
-		HTMLContent:      htmlContent,
-		ReplyTo:          replyTo,
-	})
-
-	if m.SendWithReplyToFunc != nil {
-		return m.SendWithReplyToFunc(emailTo, subject, plainTextContent, htmlContent, replyTo)
-	}
-	return nil
-}
-
-func (m *MockSenderService) GetSendCalls() []SendCall {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return append([]SendCall{}, m.SendCalls...)
-}
-
-func (m *MockSenderService) GetSendWithReplyToCalls() []SendWithReplyToCall {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return append([]SendWithReplyToCall{}, m.SendWithReplyToCalls...)
+	return append([]*EmailMessage{}, m.SendCalls...)
 }
 
 func (m *MockSenderService) Reset() {
@@ -90,80 +43,59 @@ func (m *MockSenderService) Reset() {
 	defer m.mu.Unlock()
 	m.SendCalls = m.SendCalls[:0]
 	m.SendFunc = nil
-	m.SendWithReplyToCalls = m.SendWithReplyToCalls[:0]
-	m.SendWithReplyToFunc = nil
 }
 
 // TestSetSenderService tests the SetSenderService function
 // It verifies that the global service can be replaced and restored correctly.
 func TestSetSenderService(t *testing.T) {
 	t.Run("Basic replacement and restoration", func(t *testing.T) {
-		// Ensure we start with a clean state by setting a known service
 		cleanupService := NewMockSenderService()
 		initialRestore := SetSenderService(cleanupService)
-		defer initialRestore() // Restore whatever was there originally at the end
+		defer initialRestore()
 
-		// Mock
 		m := NewMockSenderService()
-
-		// Store the current service (our cleanup service)
 		originalService := GetSenderService()
 
-		// Replace the global service with a mock service
 		restore := SetSenderService(m)
-
-		// Ensure the global service is replaced
 		assert.Equal(t, m, GetSenderService())
 
-		// Restore the previous global service
 		restore()
 		assert.Equal(t, originalService, GetSenderService())
-		// The restoration worked correctly if we get back to the original service
 	})
 
 	t.Run("Multiple replacements work correctly", func(t *testing.T) {
-		// Ensure we start with a clean state
 		cleanupService := NewMockSenderService()
 		initialRestore := SetSenderService(cleanupService)
 		defer initialRestore()
 
 		mock1 := NewMockSenderService()
 		mock2 := NewMockSenderService()
-
-		// Store original service
 		originalService := GetSenderService()
 
-		// Set first service
 		restore1 := SetSenderService(mock1)
 		assert.Equal(t, mock1, GetSenderService())
 
-		// Set second service
 		restore2 := SetSenderService(mock2)
 		assert.Equal(t, mock2, GetSenderService())
 
-		// Restore to first service
 		restore2()
 		assert.Equal(t, mock1, GetSenderService())
 
-		// Restore to original
 		restore1()
 		assert.Equal(t, originalService, GetSenderService())
 	})
 
 	t.Run("Restore function can be called multiple times safely", func(t *testing.T) {
-		// Ensure we start with a clean state
 		cleanupService := NewMockSenderService()
 		initialRestore := SetSenderService(cleanupService)
 		defer initialRestore()
 
 		mock := NewMockSenderService()
-
 		originalService := GetSenderService()
 		restore := SetSenderService(mock)
 
 		assert.Equal(t, mock, GetSenderService())
 
-		// Call restore multiple times
 		restore()
 		assert.Equal(t, originalService, GetSenderService())
 
@@ -173,28 +105,20 @@ func TestSetSenderService(t *testing.T) {
 }
 
 // TestGetSenderService tests the GetSenderService function
-// It verifies that the global service can be accessed correctly.
 func TestGetSenderService(t *testing.T) {
 	t.Run("Returns the current global service", func(t *testing.T) {
-		// Mock
 		m := NewMockSenderService()
-
-		// Replace the global service with a mock service
 		restore := SetSenderService(m)
 		defer restore()
 
-		// Access the global service
-		service := GetSenderService()
-		assert.Equal(t, m, service)
+		assert.Equal(t, m, GetSenderService())
 	})
 
 	t.Run("Returns nil when no service is set", func(t *testing.T) {
-		// Temporarily clear the global service
 		restore := SetSenderService(nil)
 		defer restore()
 
-		service := GetSenderService()
-		assert.Nil(t, service)
+		assert.Nil(t, GetSenderService())
 	})
 }
 
@@ -209,39 +133,35 @@ func TestGlobalFunctions(t *testing.T) {
 		mockService.Reset()
 		expectedErr := assert.AnError
 
-		// Set up the mock to return the expected error
-		mockService.SendFunc = func(emailTo, subject, plainTextContent, htmlContent string) error {
+		mockService.SendFunc = func(message *EmailMessage) error {
 			return expectedErr
 		}
 
-		err := Send("", "", "", "")
+		msg := NewEmailMessage("to@example.com", "Subject", "plain", "<b>html</b>")
+		err := Send(msg)
 
 		assert.Equal(t, expectedErr, err)
-
-		// Verify the call was made
-		calls := mockService.GetSendCalls()
-		assert.Len(t, calls, 1)
+		assert.Len(t, mockService.GetSendCalls(), 1)
 	})
 
-	t.Run("SendWithReplyTo calls service SendWithReplyTo", func(t *testing.T) {
+	t.Run("Send passes message fields correctly", func(t *testing.T) {
 		mockService.Reset()
-		expectedErr := assert.AnError
 
-		mockService.SendWithReplyToFunc = func(emailTo, subject, plainTextContent, htmlContent string, replyTo ReplyTo) error {
-			return expectedErr
-		}
+		headers := map[string]string{"List-Unsubscribe": "<mailto:unsub@example.com>"}
+		msg := NewEmailMessage("to@example.com", "Subject", "plain", "<b>html</b>").
+			WithReplyTo("Reply Name", "reply@example.com").
+			WithHeaders(headers)
 
-		err := SendWithReplyTo("to@example.com", "Subject", "plain", "<b>html</b>", "Reply Name", "reply@example.com")
+		_ = Send(msg)
 
-		assert.Equal(t, expectedErr, err)
-
-		calls := mockService.GetSendWithReplyToCalls()
+		calls := mockService.GetSendCalls()
 		assert.Len(t, calls, 1)
-		assert.Equal(t, "to@example.com", calls[0].EmailTo)
+		assert.Equal(t, "to@example.com", calls[0].To)
 		assert.Equal(t, "Subject", calls[0].Subject)
 		assert.Equal(t, "plain", calls[0].PlainTextContent)
 		assert.Equal(t, "<b>html</b>", calls[0].HTMLContent)
-		assert.Equal(t, ReplyTo{Name: "Reply Name", Address: "reply@example.com"}, calls[0].ReplyTo)
+		assert.Equal(t, &ReplyTo{Name: "Reply Name", Address: "reply@example.com"}, calls[0].ReplyTo)
+		assert.Equal(t, headers, calls[0].Headers)
 	})
 }
 
@@ -249,7 +169,6 @@ func TestGlobalFunctions(t *testing.T) {
 func TestConcurrentAccess(t *testing.T) {
 	t.Run("Concurrent reads are safe", func(t *testing.T) {
 		mockService := NewMockSenderService()
-
 		restore := SetSenderService(mockService)
 		defer restore()
 
@@ -264,10 +183,8 @@ func TestConcurrentAccess(t *testing.T) {
 				results[idx] = GetSenderService()
 			}(i)
 		}
-
 		wg.Wait()
 
-		// All reads should return the same service
 		for i, result := range results {
 			assert.Equal(t, mockService, result, "Reader %d got unexpected result", i)
 		}
@@ -279,7 +196,6 @@ func TestConcurrentAccess(t *testing.T) {
 		mocks := make([]*MockSenderService, numWriters)
 		restoreFuncs := make([]func(), numWriters)
 
-		// Create mock services
 		for i := 0; i < numWriters; i++ {
 			mocks[i] = NewMockSenderService()
 		}
@@ -291,10 +207,8 @@ func TestConcurrentAccess(t *testing.T) {
 				restoreFuncs[idx] = SetSenderService(mocks[idx])
 			}(i)
 		}
-
 		wg.Wait()
 
-		// The final service should be one of the mocks
 		finalService := GetSenderService()
 		found := false
 		for _, mock := range mocks {
@@ -305,7 +219,6 @@ func TestConcurrentAccess(t *testing.T) {
 		}
 		assert.True(t, found, "Final service should be one of the set mocks")
 
-		// Clean up (call restore functions)
 		for _, restore := range restoreFuncs {
 			if restore != nil {
 				restore()
@@ -315,55 +228,42 @@ func TestConcurrentAccess(t *testing.T) {
 
 	t.Run("Mixed concurrent reads and writes are safe", func(t *testing.T) {
 		mockService := NewMockSenderService()
-
 		const numOperations = 50
 		var wg sync.WaitGroup
 
 		originalRestore := SetSenderService(mockService)
 		defer originalRestore()
 
-		wg.Add(numOperations * 2) // readers + writers
+		wg.Add(numOperations * 2)
 
-		// Start readers
 		for i := 0; i < numOperations; i++ {
 			go func() {
 				defer wg.Done()
-				service := GetSenderService()
-				assert.NotNil(t, service) // Should always get some service
+				assert.NotNil(t, GetSenderService())
 			}()
 		}
 
-		// Start writers
 		for i := 0; i < numOperations; i++ {
 			go func() {
 				defer wg.Done()
 				newMock := NewMockSenderService()
 				restore := SetSenderService(newMock)
-				// Immediately restore to avoid leaving test in inconsistent state
 				restore()
 			}()
 		}
 
 		wg.Wait()
-		// Test should complete without data races or panics
 	})
 }
 
 // TestGlobalFunctionsWithNilService tests behavior when no service is set
 func TestGlobalFunctionsWithNilService(t *testing.T) {
-	// Temporarily clear the global service
 	restore := SetSenderService(nil)
 	defer restore()
 
 	t.Run("Send panics with nil service", func(t *testing.T) {
 		assert.Panics(t, func() {
-			_ = Send("", "", "", "")
-		})
-	})
-
-	t.Run("SendWithReplyTo panics with nil service", func(t *testing.T) {
-		assert.Panics(t, func() {
-			_ = SendWithReplyTo("", "", "", "", "", "")
+			_ = Send(NewEmailMessage("", "", "", ""))
 		})
 	})
 }

@@ -109,7 +109,7 @@ func main() {
 
 	subject := fmt.Sprintf("Welcome to %s, %s!", data.CompanyName, data.User.Name)
 
-	err = goat.Send(user.Email, subject, plainTextContent, htmlContent)
+	err = goat.Send(goat.NewEmailMessage(user.Email, subject, plainTextContent, htmlContent))
 	if err != nil {
 		fmt.Printf("   ❌ Expected error occurred (placeholder credentials): %v\n", err)
 		fmt.Println("   💡 To actually send emails, replace the placeholder SendGrid credentials")
