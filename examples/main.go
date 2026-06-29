@@ -109,7 +109,13 @@ func main() {
 
 	subject := fmt.Sprintf("Welcome to %s, %s!", data.CompanyName, data.User.Name)
 
-	err = goat.Send(goat.NewEmailMessage(user.Email, subject, plainTextContent, htmlContent))
+	// Attach a calendar invite (.ics). In a real application you would typically
+	// read attachment bytes from disk, e.g. os.ReadFile("invoice.pdf").
+	invite := []byte(createCalendarInvite(data.CompanyName))
+	msg := goat.NewEmailMessage(user.Email, subject, plainTextContent, htmlContent).
+		WithAttachment("welcome.ics", "text/calendar", invite)
+
+	err = goat.Send(msg)
 	if err != nil {
 		fmt.Printf("   ❌ Expected error occurred (placeholder credentials): %v\n", err)
 		fmt.Println("   💡 To actually send emails, replace the placeholder SendGrid credentials")
@@ -126,6 +132,20 @@ func main() {
 	fmt.Println("• Customize the email template to match your brand")
 	fmt.Println("• Add email validation if needed for your use case")
 	fmt.Println("• Integrate into your application workflow")
+}
+
+// createCalendarInvite returns a minimal iCalendar (.ics) invite as a string.
+func createCalendarInvite(companyName string) string {
+	return `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//` + companyName + `//go-at//EN
+BEGIN:VEVENT
+UID:welcome@example.com
+SUMMARY:Welcome onboarding call
+DTSTART:20250101T100000Z
+DTEND:20250101T103000Z
+END:VEVENT
+END:VCALENDAR`
 }
 
 // createWelcomeEmailTemplate returns a complete HTML email template with embedded CSS

@@ -6,6 +6,18 @@ type ReplyTo struct {
 	Address string
 }
 
+// Attachment represents a file attached to an email.
+// Content holds the raw (un-encoded) bytes; the library base64-encodes it per provider.
+// Set ContentID to embed the attachment inline (referenced from HTML as cid:<ContentID>).
+// Note: Brevo (brevo-go v1.1.3) ignores ContentType and ContentID — it infers the MIME type
+// from Filename and cannot embed inline; such attachments are sent as regular attachments.
+type Attachment struct {
+	Filename    string
+	ContentType string // MIME type, e.g. "application/pdf", "text/calendar"
+	Content     []byte // raw bytes (not base64)
+	ContentID   string // optional; when set, the attachment is inline
+}
+
 // EmailMessage represents an email to be sent.
 // Build one with NewEmailMessage and chain With* methods for optional fields.
 type EmailMessage struct {
@@ -15,6 +27,7 @@ type EmailMessage struct {
 	HTMLContent      string
 	ReplyTo          *ReplyTo
 	Headers          map[string]string
+	Attachments      []Attachment
 }
 
 // NewEmailMessage creates a new EmailMessage with the required fields.
@@ -45,5 +58,33 @@ func (m *EmailMessage) WithHeader(key, value string) *EmailMessage {
 // WithHeaders sets all custom headers at once and returns the message for chaining.
 func (m *EmailMessage) WithHeaders(headers map[string]string) *EmailMessage {
 	m.Headers = headers
+	return m
+}
+
+// WithAttachment adds a standard file attachment and returns the message for chaining.
+func (m *EmailMessage) WithAttachment(filename, contentType string, content []byte) *EmailMessage {
+	m.Attachments = append(m.Attachments, Attachment{
+		Filename:    filename,
+		ContentType: contentType,
+		Content:     content,
+	})
+	return m
+}
+
+// WithInlineAttachment adds an inline attachment referenced from HTML as cid:<contentID>
+// and returns the message for chaining.
+func (m *EmailMessage) WithInlineAttachment(filename, contentType string, content []byte, contentID string) *EmailMessage {
+	m.Attachments = append(m.Attachments, Attachment{
+		Filename:    filename,
+		ContentType: contentType,
+		Content:     content,
+		ContentID:   contentID,
+	})
+	return m
+}
+
+// WithAttachments appends pre-built attachments and returns the message for chaining.
+func (m *EmailMessage) WithAttachments(attachments ...Attachment) *EmailMessage {
+	m.Attachments = append(m.Attachments, attachments...)
 	return m
 }

@@ -148,9 +148,11 @@ func TestGlobalFunctions(t *testing.T) {
 		mockService.Reset()
 
 		headers := map[string]string{"List-Unsubscribe": "<mailto:unsub@example.com>"}
+		content := []byte("PDF bytes")
 		msg := NewEmailMessage("to@example.com", "Subject", "plain", "<b>html</b>").
 			WithReplyTo("Reply Name", "reply@example.com").
-			WithHeaders(headers)
+			WithHeaders(headers).
+			WithAttachment("invoice.pdf", "application/pdf", content)
 
 		_ = Send(msg)
 
@@ -162,6 +164,7 @@ func TestGlobalFunctions(t *testing.T) {
 		assert.Equal(t, "<b>html</b>", calls[0].HTMLContent)
 		assert.Equal(t, &ReplyTo{Name: "Reply Name", Address: "reply@example.com"}, calls[0].ReplyTo)
 		assert.Equal(t, headers, calls[0].Headers)
+		assert.Equal(t, []Attachment{{Filename: "invoice.pdf", ContentType: "application/pdf", Content: content}}, calls[0].Attachments)
 	})
 }
 
