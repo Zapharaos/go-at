@@ -2,6 +2,7 @@ package goat
 
 import (
 	"context"
+	"encoding/base64"
 
 	"github.com/sendgrid/rest"
 	"github.com/sendgrid/sendgrid-go"
@@ -41,6 +42,20 @@ func (s *SendgridService) Send(message *EmailMessage) error {
 
 	for k, v := range message.Headers {
 		msg.SetHeader(k, v)
+	}
+
+	for _, a := range message.Attachments {
+		att := mail.NewAttachment()
+		att.SetContent(base64.StdEncoding.EncodeToString(a.Content))
+		att.SetType(a.ContentType)
+		att.SetFilename(a.Filename)
+		if a.ContentID != "" {
+			att.SetContentID(a.ContentID)
+			att.SetDisposition("inline")
+		} else {
+			att.SetDisposition("attachment")
+		}
+		msg.AddAttachment(att)
 	}
 
 	_, err := s.client.Send(msg)

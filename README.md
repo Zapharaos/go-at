@@ -19,6 +19,7 @@ Go library for streamlining email delivery with templating capabilities.
 - **Email delivery**: Send emails via SendGrid or Brevo with an extensible interface for other providers
 - **Templating**: Create dynamic content using Go's template syntax
 - **Styling**: Add styles through your template definitions
+- **Attachments**: Attach files such as PDFs or calendar invites, including inline images
 
 ## Installation
 
@@ -80,6 +81,32 @@ func main() {
 ```
 
 For comprehensive usage examples including template variables, pluralization, and fallback behavior, see the [examples package](./examples/).
+
+### Attachments
+
+Attach files by passing their raw bytes — go-at base64-encodes them for the provider.
+Use `WithAttachment` for standard files (PDF, `.ics`, etc.) and `WithInlineAttachment`
+to embed an image referenced from the HTML body via `cid:<contentID>`:
+
+```go
+pdf, _ := os.ReadFile("invoice.pdf")
+logo, _ := os.ReadFile("logo.png")
+
+msg := goat.NewEmailMessage(
+    "user@example.com",
+    "Your invoice",
+    "Please find your invoice attached.",            // plain text
+    `<p>Invoice attached</p><img src="cid:logo">`,   // HTML referencing the inline image
+).
+    WithAttachment("invoice.pdf", "application/pdf", pdf).
+    WithInlineAttachment("logo.png", "image/png", logo, "logo")
+
+err := goat.Send(msg)
+```
+
+> **Note:** Inline embedding and explicit MIME types are fully supported on SendGrid.
+> Brevo (brevo-go v1.1.3) infers the MIME type from the filename and has no Content-ID
+> field, so an inline attachment is delivered as a regular attachment.
 
 ### Using Brevo instead of SendGrid
 

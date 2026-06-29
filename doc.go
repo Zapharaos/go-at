@@ -21,5 +21,13 @@
 //
 //	service := goat.NewBrevoService("api-key", "Your Name", "you@company.com")
 //
+// Attach files (e.g. a PDF or calendar invite) with WithAttachment, or embed an
+// image inline via WithInlineAttachment and reference it from HTML as cid:<ContentID>:
+//
+//	pdf, _ := os.ReadFile("invoice.pdf")
+//	msg := goat.NewEmailMessage("user@example.com", "Your invoice", content, content).
+//		WithAttachment("invoice.pdf", "application/pdf", pdf)
+//	err := goat.Send(msg)
+//
 // For more details, see README.md.
 package goat

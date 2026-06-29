@@ -2,6 +2,7 @@ package goat
 
 import (
 	"context"
+	"encoding/base64"
 	"net/http"
 
 	brevo "github.com/getbrevo/brevo-go/lib"
@@ -57,6 +58,17 @@ func (s *BrevoService) Send(message *EmailMessage) error {
 			h[k] = v
 		}
 		brevoMsg.Headers = h
+	}
+
+	if len(message.Attachments) > 0 {
+		atts := make([]brevo.SendSmtpEmailAttachment, 0, len(message.Attachments))
+		for _, a := range message.Attachments {
+			atts = append(atts, brevo.SendSmtpEmailAttachment{
+				Content: base64.StdEncoding.EncodeToString(a.Content),
+				Name:    a.Filename,
+			})
+		}
+		brevoMsg.Attachment = atts
 	}
 
 	_, _, err := s.client.SendTransacEmail(context.Background(), brevoMsg)
