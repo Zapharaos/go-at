@@ -31,8 +31,22 @@ func NewSendgridService(apiKey, senderName, senderEmail string) SenderService {
 	return service
 }
 
-// Send sends an email using SendGrid
+// Send sends an email using SendGrid.
+//
+// It returns only an error and is kept for backward compatibility; use
+// SendWithResult when you need the message ID returned by SendGrid.
 func (s *SendgridService) Send(message *EmailMessage) error {
+	_, err := s.SendWithResult(message)
+	return err
+}
+
+// SendWithResult sends an email using SendGrid and returns the message ID from
+// the response.
+//
+// SendGrid returns the message ID in the X-Message-Id response header rather
+// than the body; the returned SendResult.MessageID holds that value (empty if
+// the header is absent).
+func (s *SendgridService) SendWithResult(message *EmailMessage) (SendResult, error) {
 	to := mail.NewEmail(message.To, message.To)
 	msg := mail.NewSingleEmail(s.from, message.Subject, to, message.PlainTextContent, message.HTMLContent)
 
@@ -58,6 +72,17 @@ func (s *SendgridService) Send(message *EmailMessage) error {
 		msg.AddAttachment(att)
 	}
 
-	_, err := s.client.Send(msg)
-	return err
+	res, err := s.client.Send(msg)
+	if err != nil {
+		return SendResult{}, err
+	}
+
+	var messageID string
+	if res != nil {
+		if ids, ok := res.Headers["X-Message-Id"]; ok && len(ids) > 0 {
+			messageID = ids[0]
+		}
+	}
+
+	return SendResult{MessageID: messageID}, nil
 }

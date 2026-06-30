@@ -7,6 +7,7 @@ import (
 // SenderService defines the interface for handling emails
 type SenderService interface {
 	Send(message *EmailMessage) error
+	SendWithResult(message *EmailMessage) (SendResult, error)
 }
 
 var (
@@ -36,4 +37,9 @@ func GetSenderService() SenderService {
 // Send directly exposes the current sender service Send function.
 func Send(message *EmailMessage) error {
 	return GetSenderService().Send(message)
+}
+
+// SendWithResult directly exposes the current sender service SendWithResult function.
+func SendWithResult(message *EmailMessage) (SendResult, error) {
+	return GetSenderService().SendWithResult(message)
 }

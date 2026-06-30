@@ -1,5 +1,12 @@
 package goat
 
+// SendResult holds metadata returned by a provider after sending an email.
+type SendResult struct {
+	// MessageID is the provider message identifier, kept verbatim
+	// (e.g. Brevo returns it wrapped in chevrons: "<xxx@smtp-relay.mailin.fr>").
+	MessageID string
+}
+
 // ReplyTo holds the reply-to name and address for an email.
 type ReplyTo struct {
 	Name    string

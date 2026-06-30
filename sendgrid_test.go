@@ -131,3 +131,36 @@ func TestSendgridService_Send(t *testing.T) {
 		assert.Equal(t, "failed to send email", err.Error())
 	})
 }
+
+// TestSendgridService_SendWithResult tests the SendWithResult method of SendgridService
+func TestSendgridService_SendWithResult(t *testing.T) {
+	service := NewSendgridService("test_api_key", "test_sender_name", "test_sender_email")
+
+	t.Run("Success - returns message ID from X-Message-Id header", func(t *testing.T) {
+		messageID := "abc123.filterdrecv-xyz"
+		service.(*SendgridService).client = &MockSendgridClient{
+			SendResponse: &rest.Response{Headers: map[string][]string{"X-Message-Id": {messageID}}},
+		}
+
+		result, err := service.SendWithResult(NewEmailMessage("test@example.com", "Test Subject", "Test Plain Text", "Test HTML Content"))
+		assert.NoError(t, err)
+		assert.Equal(t, messageID, result.MessageID)
+	})
+
+	t.Run("Success - empty message ID when header absent", func(t *testing.T) {
+		service.(*SendgridService).client = &MockSendgridClient{SendResponse: &rest.Response{}}
+
+		result, err := service.SendWithResult(NewEmailMessage("test@example.com", "Test Subject", "Test Plain Text", "Test HTML Content"))
+		assert.NoError(t, err)
+		assert.Equal(t, "", result.MessageID)
+	})
+
+	t.Run("Failure - returns empty result and error", func(t *testing.T) {
+		service.(*SendgridService).client = &MockSendgridClient{SendResponse: &rest.Response{}, SendError: fmt.Errorf("failed to send email")}
+
+		result, err := service.SendWithResult(NewEmailMessage("test@example.com", "Test Subject", "Test Plain Text", "Test HTML Content"))
+		assert.Error(t, err)
+		assert.Equal(t, "failed to send email", err.Error())
+		assert.Equal(t, SendResult{}, result)
+	})
+}

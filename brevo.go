@@ -35,8 +35,35 @@ func NewBrevoService(apiKey, senderName, senderEmail string) SenderService {
 	return service
 }
 
-// Send sends an email using Brevo
+// Send sends an email using Brevo.
+//
+// It returns only an error and is kept for backward compatibility; use
+// SendWithResult when you need the message ID returned by Brevo.
 func (s *BrevoService) Send(message *EmailMessage) error {
+	_, err := s.SendWithResult(message)
+	return err
+}
+
+// SendWithResult sends an email using Brevo and returns the message ID from
+// the API response.
+//
+// The returned SendResult.MessageID is the raw value of the response messageId
+// field, kept verbatim including the surrounding chevrons (e.g.
+// "<xxx@smtp-relay.mailin.fr>"). Brevo webhooks echo this same value in their
+// message-id field, so it is the join key used to track delivery status.
+func (s *BrevoService) SendWithResult(message *EmailMessage) (SendResult, error) {
+	brevoMsg := s.buildMessage(message)
+
+	res, _, err := s.client.SendTransacEmail(context.Background(), brevoMsg)
+	if err != nil {
+		return SendResult{}, err
+	}
+
+	return SendResult{MessageID: res.MessageId}, nil
+}
+
+// buildMessage maps an EmailMessage onto the Brevo request payload.
+func (s *BrevoService) buildMessage(message *EmailMessage) brevo.SendSmtpEmail {
 	brevoMsg := brevo.SendSmtpEmail{
 		Sender:      s.from,
 		To:          []brevo.SendSmtpEmailTo{{Email: message.To, Name: message.To}},
@@ -71,6 +98,5 @@ func (s *BrevoService) Send(message *EmailMessage) error {
 		brevoMsg.Attachment = atts
 	}
 
-	_, _, err := s.client.SendTransacEmail(context.Background(), brevoMsg)
-	return err
+	return brevoMsg
 }
