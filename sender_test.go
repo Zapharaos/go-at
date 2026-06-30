@@ -9,9 +9,10 @@ import (
 
 // Manual mock implementation for SenderService
 type MockSenderService struct {
-	SendFunc  func(message *EmailMessage) error
-	SendCalls []*EmailMessage
-	mu        sync.Mutex
+	SendFunc           func(message *EmailMessage) error
+	SendWithResultFunc func(message *EmailMessage) (SendResult, error)
+	SendCalls          []*EmailMessage
+	mu                 sync.Mutex
 }
 
 func NewMockSenderService() *MockSenderService {
@@ -32,6 +33,18 @@ func (m *MockSenderService) Send(message *EmailMessage) error {
 	return nil
 }
 
+func (m *MockSenderService) SendWithResult(message *EmailMessage) (SendResult, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.SendCalls = append(m.SendCalls, message)
+
+	if m.SendWithResultFunc != nil {
+		return m.SendWithResultFunc(message)
+	}
+	return SendResult{}, nil
+}
+
 func (m *MockSenderService) GetSendCalls() []*EmailMessage {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -43,6 +56,7 @@ func (m *MockSenderService) Reset() {
 	defer m.mu.Unlock()
 	m.SendCalls = m.SendCalls[:0]
 	m.SendFunc = nil
+	m.SendWithResultFunc = nil
 }
 
 // TestSetSenderService tests the SetSenderService function
@@ -141,6 +155,22 @@ func TestGlobalFunctions(t *testing.T) {
 		err := Send(msg)
 
 		assert.Equal(t, expectedErr, err)
+		assert.Len(t, mockService.GetSendCalls(), 1)
+	})
+
+	t.Run("SendWithResult calls service SendWithResult", func(t *testing.T) {
+		mockService.Reset()
+		expected := SendResult{MessageID: "<msg-123@smtp-relay.mailin.fr>"}
+
+		mockService.SendWithResultFunc = func(message *EmailMessage) (SendResult, error) {
+			return expected, nil
+		}
+
+		msg := NewEmailMessage("to@example.com", "Subject", "plain", "<b>html</b>")
+		result, err := SendWithResult(msg)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expected, result)
 		assert.Len(t, mockService.GetSendCalls(), 1)
 	})
 

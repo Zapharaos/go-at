@@ -121,3 +121,35 @@ func TestBrevoService_Send(t *testing.T) {
 		assert.Equal(t, "failed to send email", err.Error())
 	})
 }
+
+// TestBrevoService_SendWithResult tests the SendWithResult method of BrevoService
+func TestBrevoService_SendWithResult(t *testing.T) {
+	service := NewBrevoService("test_api_key", "test_sender_name", "test_sender_email")
+
+	t.Run("Success - returns message ID verbatim", func(t *testing.T) {
+		messageID := "<202406301200.123456789@smtp-relay.mailin.fr>"
+		service.(*BrevoService).client = &MockBrevoClient{
+			SendResponse: brevo.CreateSmtpEmail{MessageId: messageID},
+		}
+
+		msg := NewEmailMessage("test@example.com", "Test Subject", "Test Plain Text", "Test HTML Content")
+		result, err := service.(*BrevoService).SendWithResult(msg)
+
+		assert.NoError(t, err)
+		assert.Equal(t, messageID, result.MessageID)
+	})
+
+	t.Run("Failure - returns empty result and error", func(t *testing.T) {
+		service.(*BrevoService).client = &MockBrevoClient{
+			SendResponse: brevo.CreateSmtpEmail{MessageId: "<should-be-ignored@mailin.fr>"},
+			SendError:    fmt.Errorf("failed to send email"),
+		}
+
+		msg := NewEmailMessage("test@example.com", "Test Subject", "Test Plain Text", "Test HTML Content")
+		result, err := service.(*BrevoService).SendWithResult(msg)
+
+		assert.Error(t, err)
+		assert.Equal(t, "failed to send email", err.Error())
+		assert.Equal(t, SendResult{}, result)
+	})
+}
